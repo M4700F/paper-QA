@@ -1,8 +1,9 @@
 import pymupdf
+import chromadb
+from embed import embed
 
-from sentence_transformers import SentenceTransformer
-
-model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
+client = chromadb.PersistentClient(path="../data/chroma_db")
+collection = client.get_or_create_collection("papers")
 
 def extract_text(pdf_path):
     '''
@@ -30,9 +31,21 @@ def chunk_text(text, chunk_size=1000, overlap=150):
 
 def embed(chunks):
     return model.encode(chunks)
+
+def store_chunks(chunks, embedding):
+    '''
+    store the chunks along with embeddings
+    '''
+    ids = [f"chunk_{i}" for i in range(len(chunks))]
+    collection.add(
+        ids = ids,
+        embeddings = embeddings.tolist(),
+        documents = chunks,
+    )
+    
     
 if __name__ == "__main__":
-    text = extract_text("../papers/perpetual_wonder.pdf")
+    text = extract_text(os.path.join(BASE_DIR, "papers/perpetual_wonder.pdf"))
     chunks = chunk_text(text)
     
     # print(chunks[0:10])
@@ -41,5 +54,7 @@ if __name__ == "__main__":
     
     embeddings = embed(chunks)
     print(f"Embedding shape: {embeddings.shape}")
-    print(f"First embedding (first 10 values): {embeddings[0][:10]}")
+    # print(f"First embedding (first 10 values): {embeddings[0][:10]}")
     
+    store_chunks(chunks, embeddings)
+    print(f"Stored {collection.count()} chunks in the vector db")
